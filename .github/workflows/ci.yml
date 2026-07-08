@@ -1,21 +1,57 @@
-name: CI
+name: ci
 
 on:
-  push:
-    branches: [develop, main]
   pull_request:
-    branches: [develop, main]
+  push:
+    branches: [develop]
 
 jobs:
-  test:
+  verify:
     runs-on: ubuntu-latest
     steps:
+      - name: Validate git rules
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+          PR_TITLE: ${{ github.event.pull_request.title || '' }}
+        run: |
+          [[ "$BRANCH_NAME" == "develop" || "$BRANCH_NAME" == "main" || "$BRANCH_NAME" =~ ^(feat|fix|refactor|chore|docs|test)/[a-z0-9]+(-[a-z0-9]+)*$ ]]
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            [[ "$PR_TITLE" =~ ^(feat|fix|refactor|chore|docs|test)\([a-z0-9-]+\):\ .{1,72}$ ]]
+          fi
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: pip install -e ".[dev]"
-      - run: python -m compileall app tests
-      - run: pytest -q
+          python-version: '3.13'
+      - name: Install Node dependencies
+        if: ${{ hashFiles('package.json') != '' }}
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Install Python dependencies
+        if: ${{ hashFiles('pyproject.toml') != '' || hashFiles('requirements.txt') != '' }}
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f pyproject.toml ]; then python -m pip install -e '.[dev]' || python -m pip install -e .; fi
+          if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+      - name: Run workspace checks
+        run: |
+          if [ -f scripts/self-check.mjs ]; then node scripts/self-check.mjs; fi
+          if [ -f .gitmodules ]; then git submodule status; fi
+      - name: Run Node checks
+        if: ${{ hashFiles('package.json') != '' }}
+        run: |
+          node - <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const { execSync } = require('node:child_process');
+          const scripts = JSON.parse(readFileSync('package.json', 'utf8')).scripts || {};
+          for (const name of ['self-check', 'test', 'typecheck', 'verify']) {
+            if (scripts[name]) execSync(`npm run ${name}`, { stdio: 'inherit' });
+          }
+          NODE
+      - name: Run Python tests
+        if: ${{ hashFiles('tests/**') != '' }}
+        run: python -m pytest tests
