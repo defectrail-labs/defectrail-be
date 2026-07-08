@@ -1,0 +1,22 @@
+[project]
+name = "defectrail-be"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "aiosqlite>=0.21.0",
+  "fastapi>=0.116.0",
+  "pydantic>=2.11.0",
+  "python-jose[cryptography]>=3.5.0",
+  "sqlalchemy[asyncio]>=2.0.41",
+  "uvicorn[standard]>=0.35.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28.0",
+  "pytest>=8.4.0",
+  "pytest-asyncio>=1.0.0"
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
