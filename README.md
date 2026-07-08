@@ -1,81 +1,50 @@
 # DefectRail BE
 
-FastAPI + SQLAlchemy 2.0 Async Mode REST API for Inspection AI lot quality evidence.
+Inspection AI lot 품질 데이터를 제공하는 FastAPI + SQLAlchemy 2.0 Async Mode REST API입니다.
 
-## Run
+## 주요 기능
+
+- 로그인/refresh token 인증
+- lot 목록과 상세 defect summary
+- 검사 결과 bulk ingest
+- defect trend 집계
+- review queue 상태 변경
+- SQLAlchemy async 모델 기반 RDB/TSDB 확장 구조
+
+## 기술 스택
+
+- FastAPI
+- SQLAlchemy 2.0 Async Mode
+- aiosqlite local demo
+- PostgreSQL/TimescaleDB 확장 가능 설계
+
+## 실행
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 uvicorn app.main:app --reload
+```
+
+## 검증
+
+```bash
 python scripts/verify_contract.py
+python -m compileall app
 ```
 
-Default DB is `sqlite+aiosqlite:///./defectrail.db` for cheap local demos. Set `DATABASE_URL` to async Postgres for production-style runs.
-
-Demo user:
-
-```text
-email: operator@defectrail.local
-password: defectrail
-device_id: portfolio-device
-```
-
-## API List
+## API
 
 - `POST /api/v1/auth/signin`
 - `POST /api/v1/auth/refresh`
 - `GET /api/v1/lots`
 - `GET /api/v1/lots/{lot_id}/defect-summary`
 - `POST /api/v1/inspection-results/bulk`
-- `GET /api/v1/defect-trends?groupBy=hour|machine|lot`
+- `GET /api/v1/defect-trends`
 - `GET /api/v1/review-queue`
 - `PATCH /api/v1/review-queue/{queue_id}`
 
-## Demo Backend Adaptation
+## 포트폴리오 포인트
 
-- Nest service/repository/auth flow -> Python service functions and REST routers.
-- Drizzle schema -> SQLAlchemy async declarative models.
-- Refresh token hardening preserved: hashed refresh tokens and unique `(user_id, device_id)`.
-- Auth identity uniqueness preserved: unique `(provider, provider_user_id)`.
-- GraphQL removed.
-
-## DB Optimization Lab
-
-Target bottleneck:
-
-```sql
-SELECT lot_id, defect_type, count(*)
-FROM inspection_results
-WHERE lot_id = :lot_id
-  AND time BETWEEN :from AND :to
-GROUP BY lot_id, defect_type;
-```
-
-Index evidence:
-
-```text
-before: sequential scan on inspection_results, 100k-row demo, p95 target breach
-after: ix_inspection_lot_time_defect(lot_id, time, defect_type), expected index range scan
-```
-
-TimescaleDB upgrade path:
-
-```sql
-SELECT create_hypertable('inspection_results', 'time');
-CREATE MATERIALIZED VIEW lot_defect_summary AS ...
-```
-
-## Portfolio Evidence
-
-- Async SQLAlchemy models for RDB entities and time-series inspection results.
-- REST ingest, dashboard summary, trend, review queue, and token endpoints.
-- Mock seed data for lots, inspection results, defect rules, and review decisions.
-- Verification script proving required routes and no GraphQL.
-
-## Resume Bullets
-
-- Implemented a FastAPI + SQLAlchemy 2.0 Async Mode REST API for lot-level Inspection AI defect analytics.
-- Adapted demo-backend auth/token concepts into hashed refresh tokens with per-device uniqueness.
-- Modeled lots, machines, inspection results, defect trends, and review queues for RDB/TSDB optimization evidence.
+비동기 ORM, token hardening, lot 단위 집계 API, review queue를 한 흐름으로 묶었습니다. REST API만 사용합니다.
