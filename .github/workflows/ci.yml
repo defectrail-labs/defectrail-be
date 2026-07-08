@@ -21,6 +21,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - uses: pnpm/action-setup@v4
+        if: ${{ hashFiles('package.json') != '' }}
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -30,7 +34,7 @@ jobs:
       - name: Install Node dependencies
         if: ${{ hashFiles('package.json') != '' }}
         run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else pnpm install --no-frozen-lockfile; fi
       - name: Install Python dependencies
         if: ${{ hashFiles('pyproject.toml') != '' || hashFiles('requirements.txt') != '' }}
         run: |
@@ -49,9 +53,9 @@ jobs:
           const { execSync } = require('node:child_process');
           const scripts = JSON.parse(readFileSync('package.json', 'utf8')).scripts || {};
           for (const name of ['self-check', 'test', 'typecheck', 'verify']) {
-            if (scripts[name]) execSync(`npm run ${name}`, { stdio: 'inherit' });
+            if (scripts[name]) execSync('pnpm run ' + name, { stdio: 'inherit' });
           }
           NODE
       - name: Run Python tests
-        if: ${{ hashFiles('tests/**') != '' }}
+        if: ${{ (hashFiles('pyproject.toml') != '' || hashFiles('requirements.txt') != '') && hashFiles('tests/**') != '' }}
         run: python -m pytest tests
