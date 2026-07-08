@@ -45,6 +45,6 @@ python -m compileall app
 - `GET /api/v1/review-queue`
 - `PATCH /api/v1/review-queue/{queue_id}`
 
-## 포트폴리오 포인트
+## 프로젝트 포인트
 
 비동기 ORM, token hardening, lot 단위 집계 API, review queue를 한 흐름으로 묶었습니다. REST API만 사용합니다.
